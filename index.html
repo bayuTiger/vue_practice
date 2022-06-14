@@ -1,0 +1,196 @@
+<!-- https://hakuhin.jp/js/timer.html -->
+
+実行処理:<input id="edit_02_fps_exec" style="margin:4px;">fps<br>
+描画処理:<input id="edit_02_fps_draw" style="margin:4px;">fps<br>
+<canvas id="canvas_02" style = "border:1px solid #000; width:100%; height:300px; background:#fff;"></canvas>
+
+<script type="text/javascript">
+<!--
+// 匿名関数内で実行
+(function (){
+
+	// アニメーションフレームに対応していない
+	if(!(window.requestAnimationFrame)) return;
+
+	// ------------------------------------------------------------
+	// スプライト用クラス
+	// ------------------------------------------------------------
+	function SpriteCircle(x,y){
+		// 初期化
+		var pos = {x:x,y:y};
+		var spd = {x:(Math.random() * 2 - 1) * 3,y:(Math.random() * 2 - 1) * 3};
+		var radius = Math.random() * 40 + 10;
+		var color = {r:Math.random(),g:Math.random(),b:Math.random()};
+
+		// 実行処理
+		this.execute = function (){
+			pos.x += spd.x;
+			pos.y += spd.y;
+
+			if(pos.x < radius){
+				pos.x = radius;
+				spd.x *= -1;
+			}
+			if(pos.y < radius){
+				pos.y = radius;
+				spd.y *= -1;
+			}
+			if(pos.x > element_canvas.width - radius){
+				pos.x = element_canvas.width - radius;
+				spd.x *= -1;
+			}
+			if(pos.y > element_canvas.height - radius){
+				pos.y = element_canvas.height - radius;
+				spd.y *= -1;
+			}
+		};
+
+		// 描画
+		this.draw = function (ctx){
+			var r = Math.floor(color.r * 255);
+			var g = Math.floor(color.g * 255);
+			var b = Math.floor(color.b * 255);
+			ctx.beginPath();
+			ctx.fillStyle = 'rgb(' + r + ',' + g + ',' + b + ')';
+			ctx.arc(pos.x, pos.y,radius, 0, Math.PI*2, false);
+			ctx.fill();
+		};
+	}
+
+
+	// ------------------------------------------------------------
+	// 各エレメントを取得
+	// ------------------------------------------------------------
+	var element_fps_exec = document.getElementById("edit_02_fps_exec");
+	var element_fps_draw = document.getElementById("edit_02_fps_draw");
+	var element_canvas = document.getElementById("canvas_02");
+
+	// ------------------------------------------------------------
+	// CanvasRenderingContext2D オブジェクトを取得
+	// ------------------------------------------------------------
+	var context_2d = null;
+	if(element_canvas.getContext){
+		context_2d = element_canvas.getContext('2d');
+	}
+	if(!context_2d) return;
+
+	// ------------------------------------------------------------
+	// 変数
+	// ------------------------------------------------------------
+	var sprite_container = new Array();
+	var time_old = 0;
+	var draw_count = 0;
+	var exec_count = 0;
+	var draw_old = 0;
+	var exec_old = 0;
+
+	// ------------------------------------------------------------
+	// 描画関数
+	// ------------------------------------------------------------
+	function draw(time){
+		// 同一タイミングの二度実行を回避
+		if(time_old == time) return;
+
+		// 画面をクリア
+		context_2d.clearRect(0,0,element_canvas.width,element_canvas.height);
+
+		// スプライトの描画処理
+		var i;
+		var num = sprite_container.length;
+		for(i=0;i<num;i++){
+			var sprite = sprite_container[i];
+			sprite.draw(context_2d);
+		}
+
+		// フレームレートを計算して表示
+		draw_count ++;
+		if(time - draw_old > 500){
+			var fps = draw_count / (time - draw_old) * 1000;
+			draw_count = 0;
+			draw_old = time;
+			element_fps_draw.value = Math.floor(fps * 100) / 100;
+		}
+
+		time_old = time;
+	}
+
+	// ------------------------------------------------------------
+	// 120FPS 時間隔で実行する
+	// ------------------------------------------------------------
+	setInterval(function(){
+
+		// スプライトの実行処理
+		var i;
+		var num = sprite_container.length;
+		for(i=0;i<num;i++){
+			var sprite = sprite_container[i];
+			sprite.execute();
+		}
+
+		// 次のアニメーション更新発生時に描画関数を実行する
+		requestAnimationFrame(draw);
+
+		// フレームレートを計算して表示
+		var time = performance.now();
+		exec_count ++;
+		if(time - exec_old > 500){
+			var fps = exec_count / (time - exec_old) * 1000;
+			exec_count = 0;
+			exec_old = time;
+			element_fps_exec.value = Math.floor(fps * 100) / 100;
+		}
+
+	},1000/120);
+
+	// ------------------------------------------------------------
+	// マウスのボタンを押すと実行されるイベント
+	// ------------------------------------------------------------
+	element_canvas.onmousedown = function (e){
+		if(!e)	e = window.event;
+
+		// オフセット
+		var rect = element_canvas.getBoundingClientRect();
+		var x = e.clientX - rect.left;
+		var y = e.clientY - rect.top;
+
+		// マウス位置にスプライトを生成
+		var sprite = new SpriteCircle(x,y);
+
+		// 配列に登録
+		sprite_container.push(sprite);
+	};
+
+	// ------------------------------------------------------------
+	// コンテキストメニューが表示される直前に実行されるイベント
+	// ------------------------------------------------------------
+	element_canvas.oncontextmenu = function (e){
+		// 無効化
+		return false;
+	};
+
+	// ------------------------------------------------------------
+	// リサイズ時に実行されるイベント
+	// ------------------------------------------------------------
+	function WindowResizeFunc(e){
+		var rect = element_canvas.getBoundingClientRect();
+		element_canvas.width  = rect.right - rect.left;
+		element_canvas.height = rect.bottom - rect.top;
+	}
+
+	// ------------------------------------------------------------
+	// イベントリスナーに対応している
+	// ------------------------------------------------------------
+	if(window.addEventListener){
+		window.addEventListener("DOMContentLoaded",WindowResizeFunc);
+		window.addEventListener("resize",WindowResizeFunc);
+
+	// ------------------------------------------------------------
+	// アタッチイベントに対応している
+	// ------------------------------------------------------------
+	}else if(window.attachEvent){
+		window.attachEvent("onload",WindowResizeFunc);
+		window.attachEvent("onresize",WindowResizeFunc);
+	}
+})();
+//-->
+</script>
